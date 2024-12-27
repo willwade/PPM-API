@@ -3,7 +3,7 @@
   "info": {
     "title": "PPM Prediction API",
     "version": "1.0.0",
-    "description": "API for language predictions using the Prediction by Partial Matching (PPM) model."
+    "description": "API for text predictions using Prediction by Partial Matching (PPM). Train on any text to create personalized predictions, or use the default English training text.\n\n**Key Features:**\n- Train on any text of your choice\n- Session-based models for individual customization\n- Predict at letter, word, or sentence level\n- Falls back to default English training if no custom training provided"
   },
   "host": "localhost:8080",
   "basePath": "/",
@@ -14,7 +14,7 @@
     "/train": {
       "post": {
         "summary": "Train the PPM model",
-        "description": "Train the model with text data from a URL or direct input.",
+        "description": "Train a new model and receive a session ID for subsequent predictions. Provide either a URL to fetch text from or direct text input, but not both.\n\n**Example: Training on German Alice in Wonderland**\n```json\n{\n  \"url\": \"https://www.gutenberg.org/cache/epub/19778/pg19778.txt\",\n  \"maxOrder\": 5\n}\n```",
         "parameters": [
           {
             "in": "body",
@@ -25,22 +25,28 @@
               "properties": {
                 "url": {
                   "type": "string",
-                  "example": "https://example.com/text"
+                  "example": "https://www.gutenberg.org/cache/epub/19778/pg19778.txt",
+                  "description": "URL to fetch training text (e.g., German Alice in Wonderland)"
                 },
                 "text": {
                   "type": "string",
-                  "example": "Direct input text for training"
+                  "example": "Dies ist ein Beispieltext für das Training.",
+                  "description": "Direct input text for training"
                 },
                 "maxOrder": {
                   "type": "integer",
                   "example": 5,
-                  "description": "Maximum order for the PPM model"
+                  "default": 5,
+                  "description": "Maximum order for the PPM model (default: 5)"
                 }
               },
               "oneOf": [
                 { "required": ["url"] },
                 { "required": ["text"] }
-              ]
+              ],
+              "not": {
+                "required": ["url", "text"]
+              }
             }
           }
         ],
@@ -50,8 +56,30 @@
             "schema": {
               "type": "object",
               "properties": {
-                "message": { "type": "string" },
-                "vocabularySize": { "type": "integer" }
+                "success": {
+                  "type": "boolean",
+                  "example": true
+                },
+                "sessionId": {
+                  "type": "string",
+                  "example": "550e8400-e29b-41d4-a716-446655440000",
+                  "description": "Unique session ID to use with /predict endpoint"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "trainingTimeMs": {
+                  "type": "number",
+                  "description": "Training time in milliseconds"
+                },
+                "vocabularySizes": {
+                  "type": "object",
+                  "properties": {
+                    "letter": { "type": "integer" },
+                    "word": { "type": "integer" },
+                    "sentence": { "type": "integer" }
+                  }
+                }
               }
             }
           },
@@ -60,7 +88,14 @@
             "schema": {
               "type": "object",
               "properties": {
-                "error": { "type": "string" }
+                "success": {
+                  "type": "boolean",
+                  "example": false
+                },
+                "error": {
+                  "type": "string",
+                  "example": "Either url or text must be provided, but not both"
+                }
               }
             }
           }
@@ -70,7 +105,7 @@
     "/predict": {
       "post": {
         "summary": "Predict next symbols",
-        "description": "Make predictions based on input text at different levels:\n\n**Supported Levels:**\n- `letter`: Character-by-character prediction\n- `word`: Word-by-word prediction\n- `sentence`: Full sentence prediction\n\n**Example requests:**\n```json\n# Letter-level prediction:\n{\n  \"input\": \"The quick bro\",\n  \"level\": \"letter\",\n  \"numPredictions\": 5\n}\n\n# Word-level prediction:\n{\n  \"input\": \"The quick brown\",\n  \"level\": \"word\",\n  \"numPredictions\": 5\n}\n\n# Sentence-level prediction:\n{\n  \"input\": \"The quick brown fox\",\n  \"level\": \"sentence\",\n  \"numPredictions\": 5\n}\n```",
+        "description": "Make predictions based on input text. Uses session-specific training if provided, otherwise falls back to default English training.\n\n**Examples:**\n```json\n# Letter-level prediction:\n{\n  \"input\": \"The quick bro\",\n  \"level\": \"letter\",\n  \"numPredictions\": 5\n}\n\n# Word-level prediction:\n{\n  \"input\": \"The quick brown\",\n  \"level\": \"word\",\n  \"numPredictions\": 5\n}\n\n# Sentence-level prediction:\n{\n  \"input\": \"The quick brown fox\",\n  \"level\": \"sentence\",\n  \"numPredictions\": 5\n}\n```",
         "parameters": [
           {
             "in": "body",
@@ -95,12 +130,18 @@
                   "minimum": 1,
                   "maximum": 100,
                   "default": 5,
-                  "example": 5,
                   "description": "Number of predictions to return (1-100)"
                 }
               },
               "required": ["input", "level"]
             }
+          },
+          {
+            "in": "header",
+            "name": "x-session-id",
+            "type": "string",
+            "required": false,
+            "description": "Session ID received from /train endpoint. If not provided, uses default English model."
           }
         ],
         "responses": {

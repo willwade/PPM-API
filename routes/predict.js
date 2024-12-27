@@ -57,17 +57,29 @@ function ensureModelExists(level) {
 
 router.post("/", (req, res) => {
   const { input, level, numPredictions = 5 } = req.body;
+  const sessionId = req.headers['x-session-id'] || 'default';
 
   if (!input || !level) {
     return res.status(400).json({ error: "Input and level are required." });
   }
 
   try {
-    const model = ensureModelExists(level);
-    
+    // Get models specific to this session
+    const models = getModels(sessionId);
+    if (!models) {
+      return res.status(400).json({ 
+        error: "Invalid session ID. Please train first or use default model." 
+      });
+    }
+
+    // Get the appropriate model for the requested level
+    const model = level === "letter" ? models.letterModel :
+                 level === "word" ? models.wordModel :
+                 models.sentenceModel;
+
     if (!model) {
       return res.status(400).json({ 
-        error: "No model available. Please train the model first or wait for default initialization." 
+        error: `No ${level} model available for this session.` 
       });
     }
 
