@@ -3,23 +3,52 @@ const assert = require("assert");
 
 class Vocabulary {
   constructor() {
-    this.symbols_ = [];
+    this.symbols_ = ["<R>"]; // Predefine root symbol
     this.symbolMap_ = new Map();
-    this.rootSymbol = 0;
+    this.symbolMap_.set("<R>", 0);
+    this.oovSymbol = "<OOV>";
+    this.oovID = -1; // Will be assigned when first used
   }
 
+  /**
+   * Adds a symbol to the vocabulary, returning its unique ID.
+   * @param {string} symbol Symbol to be added.
+   * @return {number} Symbol ID.
+   */
   addSymbol(symbol) {
-    if (!this.symbolMap_.has(symbol)) {
-      const id = this.symbols_.length + 1; // 0 is reserved for root
-      this.symbolMap_.set(symbol, id);
-      this.symbols_.push(symbol);
+    if (this.symbolMap_.has(symbol)) {
+      return this.symbolMap_.get(symbol);
     }
+    const id = this.symbols_.length;
+    this.symbolMap_.set(symbol, id);
+    this.symbols_.push(symbol);
+    return id;
   }
 
+  /**
+   * Gets the ID of a symbol, or maps to OOV if not found.
+   * @param {string} symbol Symbol to look up.
+   * @return {number} Symbol ID.
+   */
+  getSymbolOrOOV(symbol) {
+    if (this.symbolMap_.has(symbol)) {
+      return this.symbolMap_.get(symbol);
+    }
+    if (this.oovID === -1) {
+      this.oovID = this.addSymbol(this.oovSymbol);
+    }
+    return this.oovID;
+  }
+
+  /**
+   * Returns the size of the vocabulary, including the root symbol.
+   * @return {number} Size.
+   */
   size() {
-    return this.symbols_.length + 1; // Including root symbol
+    return this.symbols_.length;
   }
 }
+
 
 class Node {
   constructor() {
@@ -72,6 +101,21 @@ class PPMLanguageModel {
     this.numNodes_ = 1;
 
     this.useExclusion_ = false;
+  }
+
+  addSymbolToContext(context, symbol) {
+    if (symbol <= 0) return;
+
+    assert(symbol < this.vocab_.size(), "Invalid symbol: " + symbol);
+    const symbolNode = context.head_.findChildWithSymbol(symbol);
+
+    if (symbolNode) {
+      context.head_ = symbolNode;
+      context.order_++;
+    } else {
+      context.head_ = context.head_.backoff_;
+      context.order_ = Math.max(0, context.order_ - 1);
+    }
   }
 
   addSymbolToNode_(node, symbol) {

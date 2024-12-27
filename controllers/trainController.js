@@ -1,8 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const fetchData = require("../utils/fetchData");
-const { PPMLanguageModel } = require("../ppm_language_model");
-const vocab = require("../vocabulary");
+const { PPMLanguageModel, Vocabulary } = require("../ppm_language_model");
 const { tokenizeText } = require("../utils/tokenizer");
 
 let letterModel, wordModel, sentenceModel; // Models for different levels

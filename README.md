@@ -143,4 +143,4 @@ If you encounter any issues, please [open an issue](https://github.com/willwade/
 
 ### License
 
-This project is licensed under the MIT License.
+This project is licensed under the GPL v 3.0 License - see the [LICENSE](LICENSE) file for details.
