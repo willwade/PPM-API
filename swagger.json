@@ -1,0 +1,96 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "PPM Prediction API",
+    "version": "1.0.0",
+    "description": "API for language predictions using the Prediction by Partial Matching (PPM) model."
+  },
+  "host": "localhost:8080",
+  "basePath": "/",
+  "schemes": ["http"],
+  "paths": {
+    "/train": {
+      "post": {
+        "summary": "Train the PPM model",
+        "description": "Provide a URL to train the model with text data.",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "example": "https://example.com/text"
+                }
+              },
+              "required": ["url"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Training complete"
+          },
+          "400": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/predict": {
+      "post": {
+        "summary": "Predict text",
+        "description": "Make predictions based on input text and a specified level (letter, word, or sentence).",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "input": {
+                  "type": "string",
+                  "example": "The quick brown"
+                },
+                "level": {
+                  "type": "string",
+                  "enum": ["letter", "word", "sentence"],
+                  "example": "word"
+                }
+              },
+              "required": ["input", "level"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Prediction results",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "predictions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "symbol": { "type": "string" },
+                      "probability": { "type": "number" }
+                    }
+                  }
+                },
+                "perplexity": { "type": "number" }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    }
+  }
+}
