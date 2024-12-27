@@ -1,6 +1,3 @@
-
-const { getModels } = require("./trainController");
-
 exports.predict = (req, res) => {
   const { input, level } = req.body;
 
@@ -34,7 +31,7 @@ exports.predict = (req, res) => {
     const tokens = level === "letter" ? [...input] : input.split(/\s+/);
 
     tokens.forEach((token) => {
-      const tokenId = model.vocab_.symbols_.indexOf(token);
+      const tokenId = model.vocab_.getSymbolOrOOV(token);
       model.addSymbolToContext(context, tokenId);
     });
 
@@ -48,11 +45,12 @@ exports.predict = (req, res) => {
       .sort((a, b) => b.probability - a.probability);
 
     const perplexity = Math.exp(
-      -predictions.reduce((acc, p) => acc + p.probability * Math.log(p.probability), 0)
+      -predictions.reduce((acc, p) => acc + (p.probability > 0 ? p.probability * Math.log(p.probability) : 0), 0)
     );
 
     res.status(200).send({ predictions, perplexity });
   } catch (error) {
+    console.error("Prediction error:", error);
     res.status(500).send({ error: error.message });
   }
 };

@@ -17,7 +17,7 @@ exports.train = async (req, res) => {
       text = await fetchData(url);
     } else {
       // Otherwise, use default training text from a file
-      const filePath = path.join(__dirname, "../data/default_training.txt");
+      const filePath = path.join(__dirname, "../training_text.txt");
       if (!fs.existsSync(filePath)) {
         return res.status(500).send({ error: "Default training text file not found." });
       }

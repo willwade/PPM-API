@@ -104,19 +104,30 @@ class PPMLanguageModel {
   }
 
   addSymbolToContext(context, symbol) {
-    if (symbol <= 0) return;
+  if (symbol <= 0) return;
 
-    assert(symbol < this.vocab_.size(), "Invalid symbol: " + symbol);
+  assert(symbol < this.vocab_.size(), `Invalid symbol: ${symbol}`);
+  
+  while (context.head_ !== null) {
     const symbolNode = context.head_.findChildWithSymbol(symbol);
 
     if (symbolNode) {
       context.head_ = symbolNode;
       context.order_++;
+      return;
     } else {
+      // Fallback to the backoff context
       context.head_ = context.head_.backoff_;
       context.order_ = Math.max(0, context.order_ - 1);
     }
   }
+
+  // If context.head_ is null, reset to root
+  if (context.head_ === null) {
+    context.head_ = this.root_;
+    context.order_ = 0;
+  }
+}
 
   addSymbolToNode_(node, symbol) {
     let symbolNode = node.findChildWithSymbol(symbol);
