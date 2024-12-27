@@ -1,25 +1,18 @@
-
 # PPM Prediction API
 
-This repository contains a **Prediction by Partial Matching (PPM)** API that provides language modeling and text predictions. The API supports character-level, word-level, and sentence-level predictions, with default training data or user-provided text.
+A text prediction API using Prediction by Partial Matching (PPM). Train on any text to create personalized predictions, or use the default English training text.
 
 ## Features
+- Train on any text of your choice
+- Session-based models for individual customization
+- Predict at letter, word, or sentence level
+- Falls back to default English training if no custom training provided
 
-- Train a PPM model with user-provided text via URL or default training data.
-- Predict the next characters, words, or sentences with probabilities and perplexity.
-- Interactive API documentation available via Swagger.
-- Default integration with datasets like Alice in Wonderland, AAC-like phrases, and filtered dialogue datasets.
-
-## Getting Started
+## Setup
 
 ### Prerequisites
-
-Ensure you have the following installed:
-
-- **Node.js** (16.x or later)
-- **npm** (7.x or later)
-- **Python** (3.7 or later) with `pip`
-- Internet access for fetching datasets
+- Node.js (>=20.0.0)
+- npm (>=9.0.0)
 
 ### Installation
 
@@ -49,41 +42,124 @@ npm start
 
 The API will be available at `http://localhost:8080`.
 
-#### API Endpoints
 
-1. **Train the Model**
-   - **URL**: `POST /train`
-   - **Request Body**:
-     ```json
-     {
-       "url": "https://example.com/text"
-     }
-     ```
-   - If no URL is provided, the API uses default training text from `data/default_training.txt`.
+## API Documentation
 
-2. **Predict Text**
-   - **URL**: `POST /predict`
-   - **Request Body**:
-     ```json
-     {
-       "input": "The quick",
-       "level": "word"
-     }
-     ```
-   - **Levels**:
-     - `letter`: Character-level predictions
-     - `word`: Word-level predictions
-     - `sentence`: Sentence-level predictions
+Once running, view the full API documentation at:
+```
+http://localhost:8080/api-docs
+```
 
-3. **Health Check**
-   - **URL**: `GET /`
-   - **Response**: `200 OK`
+### Quick Start Guide
 
-4. **Swagger Documentation**
-   - Access Swagger documentation at:
-     ```
-     http://localhost:8080/api-docs
-     ```
+1. **Train a Model** (Optional)
+
+```bash
+curl -X POST http://localhost:8080/train \
+-H "Content-Type: application/json" \
+-d '{
+"url": "https://www.gutenberg.org/cache/epub/19778/pg19778.txt",
+"maxOrder": 5
+}'
+```
+
+Response:
+
+```json
+{
+"success": true,
+"sessionId": "550e8400-e29b-41d4-a716-446655440000",
+"message": "Training complete",
+"trainingTimeMs": 1234,
+"vocabularySizes": {
+"letter": 52,
+"word": 2000,
+"sentence": 500
+}
+}
+```
+
+2. **Make Predictions**
+
+```bash
+curl -X POST http://localhost:8080/predict \
+-H "Content-Type: application/json" \
+-H "x-session-id: 550e8400-e29b-41d4-a716-446655440000" \
+-d '{
+"input": "The quick brown",
+"level": "word",
+"numPredictions": 5
+}'
+```
+
+Response:
+
+```json
+json
+{
+"input": "The quick brown",
+"level": "word",
+"predictions": [
+{
+"symbol": "fox",
+"probability": 0.4,
+"logProbability": -0.916
+},
+// ... more predictions
+],
+"contextOrder": 3,
+"perplexity": 2.5
+}
+```
+
+### Training Options
+
+You can train the model in two ways:
+
+1. **Using a URL**:
+
+```json
+{
+"url": "https://www.gutenberg.org/cache/epub/19778/pg19778.txt",
+"maxOrder": 5
+}
+```
+
+2. **Using Direct Text**:
+
+```json
+{
+"text": "Your training text here",
+"maxOrder": 5
+}
+```
+
+Note: Provide either `url` OR `text`, but not both.
+
+### Prediction Levels
+
+The API supports three prediction levels:
+- `letter`: Character-by-character prediction
+- `word`: Word-by-word prediction
+- `sentence`: Full sentence prediction
+
+### Session Management
+
+1. When you train a model, you receive a `sessionId`
+2. Use this `sessionId` in the `x-session-id` header for subsequent predictions
+3. If no `sessionId` is provided, the API uses default English training text
+
+## Deployment
+
+### DigitalOcean App Platform
+1. Fork this repository
+2. Connect your DigitalOcean account
+3. Create a new App from your forked repository
+4. Deploy using Node.js settings:
+   - Environment: Node.js
+   - Build Command: `npm install`
+   - Run Command: `npm start`
+
 
 ### Generate Training Text
 
@@ -95,47 +171,6 @@ To generate training text from datasets (Alice in Wonderland, AAC-like phrases, 
    ```
 2. The generated text will be saved to `training_text.txt`.
 
-### File Structure
-
-```
-PPM-API/
-├── controllers/
-│   ├── trainController.js    # Training logic
-│   ├── predictController.js  # Prediction logic
-├── data/
-│   ├── default_training.txt  # Default training text
-├── scripts/
-│   ├── run-python.js         # Node.js script to execute Python
-├── generate_training_text.py # Script to generate training text
-├── app.js                    # Main application entry point
-├── package.json              # Node.js project config
-└── README.md                 # This file
-```
-
-### Development
-
-#### Run in Development Mode
-Use `nodemon` for hot-reloading during development:
-```bash
-npm run dev
-```
-
-#### Lint the Code
-Run ESLint to check for code issues:
-```bash
-npm run lint
-```
-
-#### Test the API
-Use Jest to run tests:
-```bash
-npm test
-```
-
-### Deployment
-
-1. Deploy the API to a cloud platform (e.g., DigitalOcean App Platform or Heroku).
-2. Ensure the `default_training.txt` file is present and accessible in the deployment environment.
 
 ### Issues
 
@@ -144,3 +179,9 @@ If you encounter any issues, please [open an issue](https://github.com/willwade/
 ### License
 
 This project is licensed under the GPL v 3.0 License - see the [LICENSE](LICENSE) file for details.
+
+
+### Acknowledgements
+
+PPM JS Was developed by Google Research - https://github.com/google-research/google-research/tree/master/jslm
+
