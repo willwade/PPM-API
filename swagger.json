@@ -8,11 +8,13 @@
   "host": "localhost:8080",
   "basePath": "/",
   "schemes": ["http"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
   "paths": {
     "/train": {
       "post": {
         "summary": "Train the PPM model",
-        "description": "Provide a URL to train the model with text data.",
+        "description": "Train the model with text data from a URL or direct input.",
         "parameters": [
           {
             "in": "body",
@@ -24,26 +26,51 @@
                 "url": {
                   "type": "string",
                   "example": "https://example.com/text"
+                },
+                "text": {
+                  "type": "string",
+                  "example": "Direct input text for training"
+                },
+                "maxOrder": {
+                  "type": "integer",
+                  "example": 5,
+                  "description": "Maximum order for the PPM model"
                 }
               },
-              "required": ["url"]
+              "oneOf": [
+                { "required": ["url"] },
+                { "required": ["text"] }
+              ]
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Training complete"
+            "description": "Training complete",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": { "type": "string" },
+                "vocabularySize": { "type": "integer" }
+              }
+            }
           },
           "400": {
-            "description": "Invalid input"
+            "description": "Invalid input",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": { "type": "string" }
+              }
+            }
           }
         }
       }
     },
     "/predict": {
       "post": {
-        "summary": "Predict text",
-        "description": "Make predictions based on input text and a specified level (letter, word, or sentence).",
+        "summary": "Predict next symbols",
+        "description": "Make predictions based on input text at different levels:\n\n**Supported Levels:**\n- `letter`: Character-by-character prediction\n- `word`: Word-by-word prediction\n- `sentence`: Full sentence prediction\n\n**Example requests:**\n```json\n# Letter-level prediction:\n{\n  \"input\": \"The quick bro\",\n  \"level\": \"letter\",\n  \"numPredictions\": 5\n}\n\n# Word-level prediction:\n{\n  \"input\": \"The quick brown\",\n  \"level\": \"word\",\n  \"numPredictions\": 5\n}\n\n# Sentence-level prediction:\n{\n  \"input\": \"The quick brown fox\",\n  \"level\": \"sentence\",\n  \"numPredictions\": 5\n}\n```",
         "parameters": [
           {
             "in": "body",
@@ -54,12 +81,22 @@
               "properties": {
                 "input": {
                   "type": "string",
-                  "example": "The quick brown"
+                  "example": "The quick brown",
+                  "description": "Input text for prediction"
                 },
                 "level": {
                   "type": "string",
                   "enum": ["letter", "word", "sentence"],
-                  "example": "word"
+                  "example": "word",
+                  "description": "**Prediction level:**\n- `letter`: Character-by-character\n- `word`: Word-by-word\n- `sentence`: Full sentence"
+                },
+                "numPredictions": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100,
+                  "default": 5,
+                  "example": 5,
+                  "description": "Number of predictions to return (1-100)"
                 }
               },
               "required": ["input", "level"]
@@ -72,25 +109,41 @@
             "schema": {
               "type": "object",
               "properties": {
+                "input": { "type": "string" },
+                "level": { "type": "string" },
                 "predictions": {
                   "type": "array",
                   "items": {
                     "type": "object",
                     "properties": {
                       "symbol": { "type": "string" },
-                      "probability": { "type": "number" }
+                      "probability": { "type": "number" },
+                      "logProbability": { "type": "number" }
                     }
                   }
                 },
+                "contextOrder": { "type": "integer" },
                 "perplexity": { "type": "number" }
               }
             }
           },
           "400": {
-            "description": "Invalid input"
+            "description": "Invalid input",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": { "type": "string" }
+              }
+            }
           },
           "500": {
-            "description": "Server error"
+            "description": "Server error",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": { "type": "string" }
+              }
+            }
           }
         }
       }
