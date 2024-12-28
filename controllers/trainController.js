@@ -1,30 +1,24 @@
 const { PPMLanguageModel, Vocabulary } = require("../ppm_language_model");
 const fetchData = require("../utils/fetchData");
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
 // Store models per session
 const sessionModels = new Map(); // sessionId -> {letterModel, wordModel, sentenceModel, timestamp}
 
-// Default training text
-const DEFAULT_TEXT = `The quick brown fox jumps over the lazy dog. 
-A quick brown dog jumps over the lazy fox. 
-The lazy fox sleeps while the quick brown dog watches.`;
+// Read the training text file
+const DEFAULT_TEXT = fs.readFileSync(
+  path.join(__dirname, '../training_text.txt'), 
+  'utf8'
+);
 
 // Initialize default models
 function initializeDefaultModels() {
+  console.log("Initializing default models from training_text.txt...");
   const letterVocab = new Vocabulary();
   const wordVocab = new Vocabulary();
   const sentenceVocab = new Vocabulary();
-
-  // Initialize letter model
-  const chars = DEFAULT_TEXT.split("");
-  chars.forEach(char => letterVocab.addSymbol(char));
-  const letterModel = new PPMLanguageModel(letterVocab, 5);
-  const letterContext = letterModel.createContext();
-  chars.forEach(char => {
-    const symbolId = letterVocab.getSymbolOrOOV(char);
-    letterModel.addSymbolAndUpdate(letterContext, symbolId);
-  });
 
   // Initialize word model
   const words = DEFAULT_TEXT.split(/\s+/);
@@ -36,24 +30,43 @@ function initializeDefaultModels() {
     wordModel.addSymbolAndUpdate(wordContext, symbolId);
   });
 
+  // Initialize letter model
+  const letters = DEFAULT_TEXT.split('');
+  letters.forEach(letter => letterVocab.addSymbol(letter));
+  const letterModel = new PPMLanguageModel(letterVocab, 5);
+  const letterContext = letterModel.createContext();
+  letters.forEach(letter => {
+    const symbolId = letterVocab.getSymbolOrOOV(letter);
+    letterModel.addSymbolAndUpdate(letterContext, symbolId);
+  });
+
   // Initialize sentence model
-  const sentences = DEFAULT_TEXT.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
+  const sentences = DEFAULT_TEXT.split(/[.!?]+/).map(s => s.trim()).filter(s => s);
   sentences.forEach(sentence => sentenceVocab.addSymbol(sentence));
-  const sentenceModel = new PPMLanguageModel(sentenceVocab, 3);
+  const sentenceModel = new PPMLanguageModel(sentenceVocab, 5);
   const sentenceContext = sentenceModel.createContext();
   sentences.forEach(sentence => {
     const symbolId = sentenceVocab.getSymbolOrOOV(sentence);
     sentenceModel.addSymbolAndUpdate(sentenceContext, symbolId);
   });
 
-  return {
+  const models = {
     letterModel,
     wordModel,
-    sentenceModel
+    sentenceModel,
+    timestamp: new Date().toISOString()
   };
+
+  console.log("Default models vocabulary sizes:", {
+    letter: letterVocab.size(),
+    word: wordVocab.size(),
+    sentence: sentenceVocab.size()
+  });
+
+  return models;
 }
 
-// Initialize default models
+// Initialize default models when the server starts
 sessionModels.set('default', initializeDefaultModels());
 
 exports.train = async (req, res) => {
@@ -143,5 +156,6 @@ exports.train = async (req, res) => {
 };
 
 exports.getModels = (sessionId = 'default') => {
+  console.log("Getting models for session:", sessionId);
   return sessionModels.get(sessionId) || sessionModels.get('default');
 };

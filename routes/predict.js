@@ -3,61 +3,17 @@ const router = express.Router();
 const { PPMLanguageModel, Vocabulary } = require("../ppm_language_model");
 const { getModels } = require("../controllers/trainController");
 
-// Default training text if no model exists
-const DEFAULT_TEXT = `The quick brown fox jumps over the lazy dog. 
-A quick brown dog jumps over the lazy fox. 
-The lazy fox sleeps while the quick brown dog watches.`;
-
 function ensureModelExists(level) {
-  const { letterModel, wordModel, sentenceModel } = getModels();
-  
-  if (level === "letter" && !letterModel) {
-    const vocab = new Vocabulary();
-    const chars = DEFAULT_TEXT.split("");
-    chars.forEach(char => vocab.addSymbol(char));
-    const model = new PPMLanguageModel(vocab, 5);
-    const context = model.createContext();
-    chars.forEach(char => {
-      const symbolId = vocab.getSymbolOrOOV(char);
-      model.addSymbolAndUpdate(context, symbolId);
-    });
-    return model;
-  }
-  
-  if (level === "word" && !wordModel) {
-    const vocab = new Vocabulary();
-    const words = DEFAULT_TEXT.split(/\s+/);
-    words.forEach(word => vocab.addSymbol(word));
-    const model = new PPMLanguageModel(vocab, 5);
-    const context = model.createContext();
-    words.forEach(word => {
-      const symbolId = vocab.getSymbolOrOOV(word);
-      model.addSymbolAndUpdate(context, symbolId);
-    });
-    return model;
-  }
-
-  if (level === "sentence" && !sentenceModel) {
-    const vocab = new Vocabulary();
-    const sentences = DEFAULT_TEXT.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
-    sentences.forEach(sentence => vocab.addSymbol(sentence));
-    const model = new PPMLanguageModel(vocab, 3); // Lower order for sentences
-    const context = model.createContext();
-    sentences.forEach(sentence => {
-      const symbolId = vocab.getSymbolOrOOV(sentence);
-      model.addSymbolAndUpdate(context, symbolId);
-    });
-    return model;
-  }
-
-  return level === "letter" ? letterModel : 
-         level === "word" ? wordModel : 
-         sentenceModel;
+  return getModels()[level === "letter" ? "letterModel" : 
+                     level === "word" ? "wordModel" : 
+                     "sentenceModel"];
 }
 
 router.post("/", (req, res) => {
   const { input, level, numPredictions = 5 } = req.body;
   const sessionId = req.headers['x-session-id'] || 'default';
+
+  console.log("Predict request:", { input, level, sessionId });
 
   if (!input || !level) {
     return res.status(400).json({ error: "Input and level are required." });
@@ -66,11 +22,11 @@ router.post("/", (req, res) => {
   try {
     // Get models specific to this session
     const models = getModels(sessionId);
-    if (!models) {
-      return res.status(400).json({ 
-        error: "Invalid session ID. Please train first or use default model." 
-      });
-    }
+    console.log("Retrieved models:", { 
+      hasLetterModel: !!models?.letterModel,
+      hasWordModel: !!models?.wordModel,
+      hasSentenceModel: !!models?.sentenceModel
+    });
 
     // Get the appropriate model for the requested level
     const model = level === "letter" ? models.letterModel :
@@ -78,10 +34,14 @@ router.post("/", (req, res) => {
                  models.sentenceModel;
 
     if (!model) {
+      console.log("No model found for level:", level);
       return res.status(400).json({ 
         error: `No ${level} model available for this session.` 
       });
     }
+
+    // Log vocabulary size
+    console.log("Model vocabulary size:", model.vocab_.size());
 
     // Create a new context and process input
     const context = model.createContext();
