@@ -8,6 +8,15 @@ const swaggerDocument = require("./swagger.json"); // Adjust the path if needed
 const app = express();
 app.use(bodyParser.json());
 
+// Modify swagger host based on environment
+if (process.env.NODE_ENV === 'production') {
+  swaggerDocument.host = 'ppmpredictor.openassistive.org';
+  swaggerDocument.schemes = ['http', 'https'];
+} else {
+  swaggerDocument.host = 'localhost:8080';
+  swaggerDocument.schemes = ['http'];
+}
+
 // API Documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 

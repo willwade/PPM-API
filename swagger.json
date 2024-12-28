@@ -3,11 +3,13 @@
   "info": {
     "title": "PPM Prediction API",
     "version": "1.0.0",
-    "description": "API for text predictions using Prediction by Partial Matching (PPM). Train on any text to create personalized predictions, or use the default English training text.\n\n**Key Features:**\n- Train on any text of your choice\n- Session-based models for individual customization\n- Predict at letter, word, or sentence level\n- Falls back to default English training if no custom training provided"
+    "description": "API for language predictions using the Prediction by Partial Matching (PPM) model."
   },
-  "host": "localhost:8080",
+  "host": process.env.NODE_ENV === 'production' ? 
+    "ppmpredictor.openassistive.org" : 
+    "localhost:8080",
   "basePath": "/",
-  "schemes": ["http"],
+  "schemes": ["http", "https"],
   "consumes": ["application/json"],
   "produces": ["application/json"],
   "paths": {
