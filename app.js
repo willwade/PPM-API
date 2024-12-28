@@ -8,17 +8,20 @@ const swaggerDocument = require("./swagger.json"); // Adjust the path if needed
 const app = express();
 app.use(bodyParser.json());
 
+// Create a deep copy of the swagger document
+const swaggerConfig = JSON.parse(JSON.stringify(swaggerDocument));
+
 // Modify swagger host based on environment
 if (process.env.NODE_ENV === 'production') {
-  swaggerDocument.host = 'ppmpredictor.openassistive.org';
-  swaggerDocument.schemes = ['http', 'https'];
+  swaggerConfig.host = 'ppmpredictor.openassistive.org';
+  swaggerConfig.schemes = ['http', 'https'];
 } else {
-  swaggerDocument.host = 'localhost:8080';
-  swaggerDocument.schemes = ['http'];
+  swaggerConfig.host = 'localhost:8080';
+  swaggerConfig.schemes = ['http'];
 }
 
 // API Documentation
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerConfig));
 
 // Routes
 app.use("/train", trainRoutes);

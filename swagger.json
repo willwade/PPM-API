@@ -5,11 +5,9 @@
     "version": "1.0.0",
     "description": "API for language predictions using the Prediction by Partial Matching (PPM) model."
   },
-  "host": process.env.NODE_ENV === 'production' ? 
-    "ppmpredictor.openassistive.org" : 
-    "localhost:8080",
+  "host": "localhost:8080",
   "basePath": "/",
-  "schemes": ["http", "https"],
+  "schemes": ["http"],
   "consumes": ["application/json"],
   "produces": ["application/json"],
   "paths": {
