@@ -10,25 +10,17 @@ function ensureModelExists(level) {
 }
 
 router.post("/", (req, res) => {
-  const { input, level, numPredictions = 5 } = req.body;
+  const { input, level, numPredictions = 5, mode = 'next' } = req.body;
   const sessionId = req.headers['x-session-id'] || 'default';
 
-  console.log("Predict request:", { input, level, sessionId });
+  console.log("Predict request:", { input, level, mode, sessionId });
 
   if (!input || !level) {
     return res.status(400).json({ error: "Input and level are required." });
   }
 
   try {
-    // Get models specific to this session
     const models = getModels(sessionId);
-    console.log("Retrieved models:", { 
-      hasLetterModel: !!models?.letterModel,
-      hasWordModel: !!models?.wordModel,
-      hasSentenceModel: !!models?.sentenceModel
-    });
-
-    // Get the appropriate model for the requested level
     const model = level === "letter" ? models.letterModel :
                  level === "word" ? models.wordModel :
                  models.sentenceModel;
@@ -40,13 +32,33 @@ router.post("/", (req, res) => {
       });
     }
 
-    // Log vocabulary size
-    console.log("Model vocabulary size:", model.vocab_.size());
+    // Split input based on level and mode
+    let symbols;
+    let filteredVocab = [...model.vocab_.symbols_]; // Create a copy of the vocabulary
 
-    // Create a new context and process input
+    if (level === "word") {
+      const words = input.split(/\s+/);
+      const lastWord = words[words.length - 1];
+      
+      if (mode === 'complete' || mode === 'current') {
+        // For word completion, we want to match partial words
+        symbols = words.slice(0, -1);
+        // Filter vocabulary to only include words that start with the partial word
+        filteredVocab = model.vocab_.symbols_
+          .filter(word => 
+            word.toLowerCase().startsWith(lastWord.toLowerCase())
+          );
+        console.log(`Found ${filteredVocab.length} words starting with "${lastWord}"`);
+      } else { // mode === 'next'
+        // For next word prediction, use all complete words
+        symbols = words;
+      }
+    } else {
+      symbols = input.split("");
+    }
+
+    // Create context and get predictions
     const context = model.createContext();
-    const symbols = level === "word" ? input.split(/\s+/) : input.split("");
-    
     symbols.forEach(symbol => {
       const symbolId = model.vocab_.getSymbolOrOOV(symbol);
       model.addSymbolToContext(context, symbolId);
@@ -54,18 +66,22 @@ router.post("/", (req, res) => {
 
     // Get probabilities and format predictions
     const probabilities = model.getProbs(context);
-    const predictions = probabilities
+    let predictions = probabilities
       .map((prob, index) => ({
         symbol: model.vocab_.symbols_[index],
         probability: prob
-      }))
-      // Remove root symbol and any invalid symbols
+      }));
+
+    // If we're in complete/current mode, filter predictions to only include matching words
+    if (level === "word" && (mode === 'complete' || mode === 'current')) {
+      predictions = predictions
+        .filter(pred => filteredVocab.includes(pred.symbol));
+    }
+
+    predictions = predictions
       .filter(pred => pred.symbol !== "<R>" && pred.symbol !== "<OOV>")
-      // Sort by probability (highest first)
       .sort((a, b) => b.probability - a.probability)
-      // Take top N predictions, even if probability is 0
       .slice(0, numPredictions)
-      // Add log probability for each prediction
       .map(pred => ({
         ...pred,
         logProbability: pred.probability > 0 ? Math.log(pred.probability) : -Infinity
@@ -74,6 +90,7 @@ router.post("/", (req, res) => {
     res.status(200).json({
       input,
       level,
+      mode,
       predictions,
       contextOrder: context.order_,
       perplexity: predictions.some(p => p.probability > 0) ? 

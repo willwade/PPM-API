@@ -5,9 +5,7 @@
     "version": "1.0.0",
     "description": "API for language predictions using the Prediction by Partial Matching (PPM) model."
   },
-  "host": "localhost:8080",
   "basePath": "/",
-  "schemes": ["http"],
   "consumes": ["application/json"],
   "produces": ["application/json"],
   "paths": {
@@ -104,8 +102,8 @@
     },
     "/predict": {
       "post": {
-        "summary": "Predict next symbols",
-        "description": "Make predictions based on input text. Uses session-specific training if provided, otherwise falls back to default English training.\n\n**Examples:**\n```json\n# Letter-level prediction:\n{\n  \"input\": \"The quick bro\",\n  \"level\": \"letter\",\n  \"numPredictions\": 5\n}\n\n# Word-level prediction:\n{\n  \"input\": \"The quick brown\",\n  \"level\": \"word\",\n  \"numPredictions\": 5\n}\n\n# Sentence-level prediction:\n{\n  \"input\": \"The quick brown fox\",\n  \"level\": \"sentence\",\n  \"numPredictions\": 5\n}\n```",
+        "summary": "Get predictions",
+        "description": "Get predictions at letter, word, or sentence level with different prediction modes.",
         "parameters": [
           {
             "in": "body",
@@ -116,21 +114,27 @@
               "properties": {
                 "input": {
                   "type": "string",
-                  "example": "The quick brown",
+                  "example": "I need hel",
                   "description": "Input text for prediction"
                 },
                 "level": {
                   "type": "string",
                   "enum": ["letter", "word", "sentence"],
                   "example": "word",
-                  "description": "**Prediction level:**\n- `letter`: Character-by-character\n- `word`: Word-by-word\n- `sentence`: Full sentence"
+                  "description": "Prediction level"
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": ["next", "complete"],
+                  "default": "next",
+                  "description": "Prediction mode:\n- `next`: Predict the next complete symbol (e.g., 'I need' → 'help')\n- `complete`: Complete the current partial symbol (e.g., 'I need hel' → 'help', 'hello')"
                 },
                 "numPredictions": {
                   "type": "integer",
                   "minimum": 1,
                   "maximum": 100,
                   "default": 5,
-                  "description": "Number of predictions to return (1-100)"
+                  "description": "Number of predictions to return"
                 }
               },
               "required": ["input", "level"]
@@ -141,7 +145,7 @@
             "name": "x-session-id",
             "type": "string",
             "required": false,
-            "description": "Session ID received from /train endpoint. If not provided, uses default English model."
+            "description": "Session ID from /train endpoint. If not provided, uses default model."
           }
         ],
         "responses": {
@@ -150,35 +154,51 @@
             "schema": {
               "type": "object",
               "properties": {
-                "input": { "type": "string" },
-                "level": { "type": "string" },
+                "input": { 
+                  "type": "string",
+                  "description": "Original input text"
+                },
+                "level": { 
+                  "type": "string",
+                  "description": "Prediction level used"
+                },
+                "mode": {
+                  "type": "string",
+                  "description": "Prediction mode used"
+                },
                 "predictions": {
                   "type": "array",
                   "items": {
                     "type": "object",
                     "properties": {
-                      "symbol": { "type": "string" },
-                      "probability": { "type": "number" },
-                      "logProbability": { "type": "number" }
+                      "symbol": { 
+                        "type": "string",
+                        "description": "Predicted symbol (letter, word, or sentence)"
+                      },
+                      "probability": { 
+                        "type": "number",
+                        "description": "Probability of this prediction"
+                      },
+                      "logProbability": { 
+                        "type": "number",
+                        "description": "Natural logarithm of the probability"
+                      }
                     }
                   }
                 },
-                "contextOrder": { "type": "integer" },
-                "perplexity": { "type": "number" }
+                "contextOrder": { 
+                  "type": "integer",
+                  "description": "Order of the context used for prediction"
+                },
+                "perplexity": { 
+                  "type": "number",
+                  "description": "Perplexity of the predictions"
+                }
               }
             }
           },
           "400": {
             "description": "Invalid input",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "error": { "type": "string" }
-              }
-            }
-          },
-          "500": {
-            "description": "Server error",
             "schema": {
               "type": "object",
               "properties": {
