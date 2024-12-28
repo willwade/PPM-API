@@ -14,7 +14,7 @@ const swaggerConfig = JSON.parse(JSON.stringify(swaggerDocument));
 // Modify swagger host based on environment
 if (process.env.NODE_ENV === 'production') {
   swaggerConfig.host = 'ppmpredictor.openassistive.org';
-  swaggerConfig.schemes = ['http', 'https'];
+  swaggerConfig.schemes = ['https'];
 } else {
   swaggerConfig.host = 'localhost:8080';
   swaggerConfig.schemes = ['http'];
